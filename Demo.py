@@ -21,7 +21,7 @@ time_rec = 20
 k = 15 * 512  # window
 window_size = k
 noise = []
-feature = []
+feature = []    
 
 print("START!")
 while x < (60 * 512):

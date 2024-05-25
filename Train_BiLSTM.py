@@ -13,6 +13,7 @@ from keras.optimizers import Adam
 
 # Đọc dữ liệu từ file CSV
 df = pd.read_csv('dataC3.csv')
+df = df[df['Label'] != 0]
 # Với cột cuối là nhãn
 X = df.iloc[:, :-1].values
 y = df.iloc[:, -1].values
@@ -30,7 +31,7 @@ kfold = KFold(n_splits=5, shuffle=True, random_state=42)
 fold_scores = []
 
 # Tạo thư mục để lưu các plot và mô hình
-model_dir = 'models'
+model_dir = 'models_traiphai_new'
 os.makedirs(model_dir, exist_ok=True)
 
 # Danh sách để lưu tên file của các mô hình đã train
@@ -60,13 +61,13 @@ for fold_index, (train_index, test_index) in enumerate(kfold.split(X), 1):
 
     # Xây dựng mô hình Bi-LSTM
     model = Sequential()
-    model.add(Bidirectional(LSTM(units=16, activation='relu', kernel_regularizer=regularizers.l2(0.01)), input_shape=(time_steps, n_features)))
+    model.add(Bidirectional(LSTM(units=16, activation='relu'), input_shape=(time_steps, n_features)))
     # model.add(Bidirectional(LSTM(units=16, activation='relu'), input_shape=(time_steps, n_features)))
+    print(model.output_shape)
     model.add(Dropout(0.1))
     model.add(Dense(units=16, activation='relu'))
     model.add(Dropout(0.1)) #0.2
-    model.add(Dense(units=3, activation='softmax'))
-
+    model.add(Dense(units=2, activation='softmax'))
     #learning rate
     lr = 0.0001
     optimizer = Adam(learning_rate=lr)
