@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.preprocessing import scale, StandardScaler, OneHotEncoder
 from sklearn.model_selection import KFold
 from keras.models import Sequential
 from keras.layers import Dense, LSTM, Bidirectional, Dropout
@@ -8,20 +8,20 @@ import numpy as np
 from tensorflow import keras
 from keras.callbacks import EarlyStopping
 import matplotlib.pyplot as plt
+import tensorflow as tf
 from tensorflow.keras import regularizers
 from keras.optimizers import Adam
 
 # Đọc dữ liệu từ file CSV
-df = pd.read_csv('dataC3.csv')
-df = df[df['Label'] != 0]
+df = pd.read_csv('dataC3_full_3_label_both_imagine_real.csv')
 # Với cột cuối là nhãn
 X = df.iloc[:, :-1].values
 y = df.iloc[:, -1].values
 
 # Chuẩn hóa dữ liệu
-scaler = StandardScaler()
-X = scaler.fit_transform(X)
-
+# scaler = StandardScaler()
+# X = scaler.fit_transform(X)
+X = scale(X,axis=1)
 # One-hot encoding cho nhãn
 encoder = OneHotEncoder(sparse_output=False)
 y = encoder.fit_transform(y.reshape(-1, 1))
@@ -31,7 +31,7 @@ kfold = KFold(n_splits=5, shuffle=True, random_state=42)
 fold_scores = []
 
 # Tạo thư mục để lưu các plot và mô hình
-model_dir = 'models_traiphai_new'
+model_dir = 'models_res1'
 os.makedirs(model_dir, exist_ok=True)
 
 # Danh sách để lưu tên file của các mô hình đã train
@@ -39,7 +39,7 @@ model_filenames = []
 
 # Tạo DataFrame để lưu history của loss và accuracy
 history_df = pd.DataFrame(columns=['fold', 'epoch', 'train_loss', 'test_loss', 'train_accuracy', 'test_accuracy'])
-
+tf.keras.backend.clear_session()
 for fold_index, (train_index, test_index) in enumerate(kfold.split(X), 1):
     X_train, X_test = X[train_index], X[test_index]
     y_train, y_test = y[train_index], y[test_index]
@@ -61,25 +61,25 @@ for fold_index, (train_index, test_index) in enumerate(kfold.split(X), 1):
 
     # Xây dựng mô hình Bi-LSTM
     model = Sequential()
-    model.add(Bidirectional(LSTM(units=16, activation='relu'), input_shape=(time_steps, n_features)))
+    model.add(Bidirectional(LSTM(units=32, activation='tanh'), input_shape=(time_steps, n_features)))
+    model.add(Dropout(0.2)) #0.2
     # model.add(Bidirectional(LSTM(units=16, activation='relu'), input_shape=(time_steps, n_features)))
     print(model.output_shape)
-    model.add(Dropout(0.1))
-    model.add(Dense(units=16, activation='relu'))
-    model.add(Dropout(0.1)) #0.2
-    model.add(Dense(units=2, activation='softmax'))
+    model.add(Dense(units=16, activation='tanh'))
+    model.add(Dropout(0.2)) #0.2
+    model.add(Dense(units=3, activation='softmax'))
     #learning rate
     lr = 0.0001
     optimizer = Adam(learning_rate=lr)
 
     # Biên dịch mô hình
-    model.compile(optimizer=optimizer , loss='categorical_crossentropy', metrics=['accuracy'])
-
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    model.summary()
     # Đặt callbacks để dừng sau 10 epochs
     early_stopping = EarlyStopping(monitor='val_accuracy', patience=10)
 
     # Huấn luyện mô hình và lưu history
-    history = model.fit(X_train, y_train, epochs=200, batch_size=96, validation_data=(X_test, y_test), callbacks=[early_stopping])
+    history = model.fit(X_train, y_train, epochs=5000, batch_size=96, validation_data=(X_test, y_test), callbacks=[early_stopping])
 
     # Lưu mô hình
     model_filename = f"BiLSTM_Brainwave_{fold_index}_accuracy_{history.history['val_accuracy'][-1]*100:.2f}.h5"
@@ -131,7 +131,7 @@ for fold_index, (train_index, test_index) in enumerate(kfold.split(X), 1):
         file.write(f"Train Accuracy: {history.history['accuracy'][-1]}\n")
         file.write(f"Validation Loss: {history.history['val_loss'][-1]}\n")
         file.write(f"Validation Accuracy: {history.history['val_accuracy'][-1]}\n")
-
+tf.keras.backend.clear_session()
 # In kết quả
 for i, score in enumerate(fold_scores, 1):
     print(f"Fold {i}: Accuracy = {score}")
